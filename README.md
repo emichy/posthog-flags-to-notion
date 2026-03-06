@@ -16,8 +16,8 @@ A Notion database like this:
 
 | Flag Key | Description | Status | Targeting | Groups Enabled |
 |---|---|---|---|---|
-| `collaboration` | Collaborative editing | Active | Specific groups | Acme Corp, Globex, Initech |
-| `new_editor` | New block editor | Active | 50% rollout | *(50% of all users)* |
+| `new_ui` | New IA sidebar | Active | Specific groups | Acme Corp, Globex, Initech |
+| `new_editor` | New block editor | Active | 50% rollout | *(50% of all orgs)* |
 | `hide_ai` | Hide AI features | Active | 0% rollout (effectively off) | |
 
 Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rollouts get a plain-English summary.
