@@ -54,7 +54,12 @@ export function analyzeFlag(flag, groupPropertyKey) {
       else if (rollout === 100) parts.push("100% rollout");
       else parts.push(`${rollout}% rollout`);
     } else if (props.length > 0 && idProps.length === 0) {
-      parts.push("Filtered by properties");
+      const filters = props.map((p) => {
+        const vals = Array.isArray(p.value) ? p.value.join(", ") : p.value;
+        const op = p.operator && p.operator !== "exact" ? ` ${p.operator.replace(/_/g, " ")}` : "";
+        return `${p.key}${op}: ${vals}`;
+      });
+      parts.push(`Filtered by ${filters.join("; ")}`);
     }
   }
 
