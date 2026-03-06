@@ -24,6 +24,15 @@ Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rol
 
 Optionally, a **directory table** mapping group names to IDs and tiers — so anyone can look up the raw ID if they need it.
 
+### How targeting is displayed
+
+PostHog feature flags use **condition groups** — each flag can have one or more sets of rules that are evaluated top-to-bottom. This tool reads those conditions and translates them:
+
+- **Specific groups** — the flag explicitly lists group IDs (e.g. `project_id exact ["pro_abc", "pro_def"]`). The tool resolves those IDs to real names and lists them.
+- **Percentage rollout** — the flag is enabled for a percentage of all users/groups (e.g. 50%). The tool shows "50% rollout" as a summary. It can't tell you _which_ specific groups landed in that 50% — PostHog evaluates that at runtime based on a hash of each group's ID. To see who actually resolved to `true`, check the flag's usage dashboard in PostHog.
+- **Combined** — a flag can have both: "these 5 customers + 20% of everyone else." The tool shows both parts, e.g. "Specific groups + 20% rollout."
+- **User-level targeting** — if a flag targets individual users by properties like `email`, the tool shows the filter details but can't resolve them to group names (since they're users, not groups).
+
 ## How it works
 
 1. **Fetches all feature flags** from the PostHog API
