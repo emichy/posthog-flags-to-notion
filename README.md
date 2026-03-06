@@ -1,14 +1,6 @@
 # posthog-flags-to-notion
 
-Sync your PostHog feature flags to a Notion database so your whole team can see who has access to what.
-
-## The problem
-
-- **Customer Success** forgets a customer is in a beta and gets confused on a call
-- **Product** drops a Slack message asking "who has the "new UI' flag enabled?"
-- **Marketing** wants to announce a feature but doesn't know if the top accounts can actually see it yet
-
-Everyone needs the same answer: _which flags are on, and for whom?_ But the only people who can check are the engineers who set them up.
+One command syncs your PostHog feature flags to Notion — real customer names, not opaque IDs. Run it once and your whole team can see who has access to what, without needing PostHog access.
 
 ## What you get
 
@@ -20,134 +12,108 @@ A Notion database like this:
 | `new_editor` | New block editor | Active | 50% rollout | *(50% of all orgs)* | `us.posthog.com/project/.../feature_flags/2` |
 | `hide_ai` | Hide AI features | Active | 0% rollout (effectively off) | | `us.posthog.com/project/.../feature_flags/3` |
 
-Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rollouts get a plain-English summary. Every flag links directly to its PostHog page for one-click access.
+Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rollouts get a plain-English summary. Every flag links directly to its PostHog page.
 
-Optionally, a **directory table** mapping group names to IDs and tiers — so anyone can look up the raw ID if they need it.
+### How targeting works
 
-### How targeting is displayed
+PostHog feature flags use condition groups — each flag can have one or more sets of rules. This tool reads those conditions and translates them:
 
-PostHog feature flags use **condition groups** — each flag can have one or more sets of rules that are evaluated top-to-bottom. This tool reads those conditions and translates them:
-
-- **Specific groups** — the flag explicitly lists group IDs (e.g. `project_id exact ["pro_abc", "pro_def"]`). The tool resolves those IDs to real names and lists them.
-- **Percentage rollout** — the flag is enabled for a percentage of all users/groups (e.g. 50%). The tool shows "50% rollout" as a summary. It can't tell you _which_ specific groups landed in that 50% — PostHog evaluates that at runtime based on a hash of each group's ID. To see who actually resolved to `true`, check the flag's usage dashboard in PostHog.
-- **Combined** — a flag can have both: "these 5 customers + 20% of everyone else." The tool shows both parts, e.g. "Specific groups + 20% rollout."
-- **User-level or property targeting** — if a flag targets by properties like `email` or `active_tier` instead of group IDs, the tool shows the actual filter values (e.g. "Filtered by email: jane@acme.com, bob@globex.com" or "Filtered by active_tier is not: free"). It can't resolve these to group names since they're not group IDs.
-
-## How it works
-
-1. **Fetches all feature flags** from the PostHog API
-2. **Parses targeting rules** — flags targeting specific groups get their IDs extracted; percentage rollouts get a plain-English summary
-3. **Resolves group IDs to names** using PostHog's Groups API (PostHog already stores group names if your app calls `posthog.group()`)
-4. **Writes to Notion** via the Notion API — creates rows for new flags, updates existing ones
-
-No database access needed. No backend. Just two APIs.
-
-### Why this exists
-
-This started as a local Claude Code agent — Notion MCP for writing, PostHog API for reading flags. It worked great, but required having Claude Code and the Notion MCP server already wired up. This repo packages it so anyone can run it — no MCP setup required, no AI required. Just `npx` and two API keys.
-
-<details>
-<summary>Already have Claude Code + Notion MCP? You can skip all this.</summary>
-
-If you already have the [Notion MCP server](https://github.com/makenotion/notion-mcp-server) connected in Claude Code, you don't need this package. Just create a local agent that reads the PostHog API and writes to Notion via MCP:
-
-`~/.claude/agents/feature-flags.md`:
-
-```markdown
-You sync PostHog feature flags to a Notion database.
-
-1. Fetch all feature flags from the PostHog API:
-   GET https://us.posthog.com/api/projects/{PROJECT_ID}/feature_flags/
-   Authorization: Bearer {POSTHOG_API_KEY}
-
-2. For each flag, extract targeting rules and group IDs from filters.groups[].properties
-
-3. Resolve group IDs to names using the Groups API:
-   GET https://us.posthog.com/api/projects/{PROJECT_ID}/groups/?group_type_index=0&search={GROUP_ID}
-
-4. Write the results to the Notion database {YOUR_DATABASE_ID} using the Notion MCP tools
-```
-
-That's essentially what this tool does — but automated and without needing Claude in the loop.
-
-</details>
+- **Specific groups** — the flag explicitly lists group IDs. The tool resolves those IDs to real names.
+- **Percentage rollout** — the flag is enabled for a percentage of all users/groups. The tool shows "50% rollout" as a summary.
+- **Combined** — both: "these 5 customers + 20% of everyone else."
+- **Property targeting** — if a flag targets by properties like `email` or `active_tier`, the tool shows the filter values (e.g. "Filtered by active_tier is not: free").
 
 ---
 
-## Quick start
+## Quick start: Claude Code agent
 
-```env
-# .env
-POSTHOG_API_KEY=phx_...        # PostHog → Settings → Personal API Keys
-POSTHOG_PROJECT_ID=12345       # From your PostHog URL: /project/<this number>/
-NOTION_API_KEY=secret_...      # notion.so/my-integrations → create integration
-NOTION_DATABASE_ID=abc123...   # From your Notion database URL (see below)
+If you have [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and the [Notion MCP server](https://github.com/makenotion/notion-mcp-server), this is the fastest path. One person runs it, the whole team reads Notion.
+
+**1. Copy the agent file:**
+
+```bash
+cp agents/feature-flags.md ~/.claude/agents/feature-flags.md
 ```
+
+Or if you haven't cloned the repo:
+
+```bash
+curl -o ~/.claude/agents/feature-flags.md \
+  https://raw.githubusercontent.com/emichy/posthog-flags-to-notion/main/agents/feature-flags.md
+```
+
+**2. Store your PostHog API key:**
+
+```bash
+echo "phx_your_key" > ~/.posthog-api-key
+```
+
+**3. Run it:**
+
+Open Claude Code and select the `feature-flags` agent (or run `/agents` → feature-flags). On first run, it'll ask for your PostHog project ID and Notion database ID.
+
+That's it. The agent reads PostHog, resolves group IDs to customer names, and writes everything to your Notion database.
+
+> Need help getting API keys or setting up Notion? See [Setup](#setup).
+
+---
+
+## Automate it: CLI + GitHub Actions
+
+Once you've validated the output, automate it so your Notion database stays current without anyone thinking about it. No Claude Code required — just `npx` and env vars.
+
+### Run locally
 
 ```bash
 npx posthog-flags-to-notion --dry-run   # preview first
 npx posthog-flags-to-notion             # sync to Notion
 ```
 
-> **EU PostHog users:** Add `POSTHOG_HOST=https://eu.posthog.com` to your `.env` — it defaults to `us.posthog.com`.
+Create a `.env` file (see [`.env.example`](.env.example)):
+
+```env
+POSTHOG_API_KEY=phx_your_key
+POSTHOG_PROJECT_ID=12345
+NOTION_API_KEY=secret_your_key
+NOTION_DATABASE_ID=your_database_id
+```
+
+### Run on a schedule
+
+`.github/workflows/sync-flags.yml`:
+
+```yaml
+name: Sync PostHog flags to Notion
+on:
+  schedule:
+    - cron: "0 * * * *" # every hour
+  workflow_dispatch: # or trigger manually
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx -y posthog-flags-to-notion
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+```
+
+Add your env vars as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) and you're done.
 
 ---
 
-## Setup
+## Query it: MCP server
 
-Both options below require the same things:
+If you use Claude Code, Cursor, or any MCP-compatible tool, add this as an MCP server and talk to your flags conversationally:
 
-### 1. PostHog personal API key
-
-Go to [PostHog → Settings → Personal API Keys](https://us.posthog.com/settings/user-api-keys) and create one.
-
-### 2. PostHog project ID
-
-Your project ID is in the URL when you're in PostHog:
-
-```
-https://us.posthog.com/project/12345/feature_flags
-                               ^^^^^
-                               this is your project ID
-```
-
-### 3. Notion setup
-
-**Create an integration:**
-1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) and create a new integration
-2. Give it read/write access to your workspace
-3. Copy the integration token (starts with `secret_`)
-
-**Create a database:**
-1. In Notion, create a new page and add an inline database (type `/database` and select "Table - Inline")
-2. Don't worry about columns — the tool auto-creates everything it needs on first run
-
-**Connect them:**
-1. On your database page, click `...` → `Connections` → add your integration
-
-**Find your database ID:**
-
-Your database ID is in the URL when you open the database. For example:
-
-```
-https://www.notion.so/myworkspace/abc123def456...
-                                  ^^^^^^^^^^^^^^
-                                  this is your database ID
-```
-
-If the URL has a `?v=` parameter, the database ID is the part *before* the `?`.
-
----
-
-## Option A: MCP Server (recommended)
-
-If you use Claude Code, Cursor, or any MCP-compatible tool, add this as an MCP server and just talk to your flags:
-
-> "Update the feature flags page"
->
 > "What flags does Acme Corp have?"
 >
 > "Who has the collaboration flag enabled?"
+>
+> "Sync flags to Notion"
 
 ### Available tools
 
@@ -200,49 +166,43 @@ If you use Claude Code, Cursor, or any MCP-compatible tool, add this as an MCP s
 }
 ```
 
-Then just ask: _"sync feature flags to Notion"_ or _"what flags does Acme have?"_
-
 ---
 
-## Option B: CLI
+## Setup
 
-No AI required. Works in CI, cron jobs, or just your terminal.
+### PostHog API key
 
-### Configure
+Go to [PostHog → Settings → Personal API Keys](https://us.posthog.com/settings/user-api-keys) and create one.
 
-Create a `.env` file (see [`.env.example`](.env.example)):
+### PostHog project ID
 
-```env
-POSTHOG_API_KEY=phx_your_key
-POSTHOG_PROJECT_ID=12345
-NOTION_API_KEY=secret_your_key
-NOTION_DATABASE_ID=your_database_id
+Your project ID is in the URL when you're in PostHog:
+
+```
+https://us.posthog.com/project/12345/feature_flags
+                               ^^^^^
 ```
 
-### Run
+### Notion integration
 
-```bash
-npx posthog-flags-to-notion
+1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) and create a new integration
+2. Give it read/write access to your workspace
+3. Copy the token (starts with `secret_`)
+
+### Notion database
+
+1. Create a new page in Notion and add an inline database (type `/database` → "Table - Inline")
+2. Don't worry about columns — the tool auto-creates everything it needs on first run
+3. Connect your integration: click `...` → `Connections` → add it
+
+Your database ID is in the URL:
+
+```
+https://www.notion.so/myworkspace/abc123def456...
+                                  ^^^^^^^^^^^^^^
 ```
 
-Or install locally:
-
-```bash
-npm install
-npm start
-```
-
-Preview without writing to Notion:
-
-```bash
-npx posthog-flags-to-notion --dry-run
-```
-
-See all options:
-
-```bash
-npx posthog-flags-to-notion --help
-```
+If the URL has a `?v=` parameter, the database ID is the part before the `?`.
 
 ---
 
@@ -257,7 +217,7 @@ npx posthog-flags-to-notion --help
 | `POSTHOG_HOST` | No | `https://us.posthog.com` | PostHog instance URL (use `https://eu.posthog.com` for EU) |
 | `POSTHOG_GROUP_TYPE_INDEX` | No | `0` | Which PostHog group type to resolve (0 = first) |
 | `POSTHOG_GROUP_PROPERTY_KEY` | No | `project_id` | The property key in flag filters to match on |
-| `NOTION_DIRECTORY_DATABASE_ID` | No | — | Optional second database for a group name ↔ ID lookup |
+| `NOTION_DIRECTORY_DATABASE_ID` | No | — | Optional second database for a group name/ID lookup |
 | `SKIP_SURVEY_FLAGS` | No | `true` | Skip PostHog survey targeting flags |
 
 ### About group types
@@ -265,7 +225,7 @@ npx posthog-flags-to-notion --help
 PostHog lets you define [group types](https://posthog.com/docs/product-analytics/group-analytics) like "Company", "Project", or "Organization". Each has an index (0, 1, 2...). If your flags target `company_id`, set:
 
 ```env
-POSTHOG_GROUP_TYPE_INDEX=0          # whatever index your group type is
+POSTHOG_GROUP_TYPE_INDEX=0
 POSTHOG_GROUP_PROPERTY_KEY=company_id
 ```
 
@@ -280,52 +240,21 @@ If you set `NOTION_DIRECTORY_DATABASE_ID`, the tool creates a second table:
 | Acme Corp | `cmp_abc123` | Enterprise |
 | Globex | `cmp_def456` | Business |
 
-Useful when someone asks "what's the ID for Acme?" — one place to look.
-
----
-
-## Automate it
-
-Run on a schedule with GitHub Actions so your Notion database stays up to date without anyone thinking about it:
-
-`.github/workflows/sync-flags.yml`:
-
-```yaml
-name: Sync PostHog flags to Notion
-on:
-  schedule:
-    - cron: "0 * * * *" # every hour
-  workflow_dispatch: # or trigger manually
-
-jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - run: npx -y posthog-flags-to-notion
-        env:
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
-          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-```
-
-Add your env vars as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) and you're done.
-
 ---
 
 ## Troubleshooting
 
 **"Cannot access Notion database"**
-Your Notion integration isn't connected to the database. Open the database page in Notion → click `...` → `Connections` → add your integration.
+Your Notion integration isn't connected to the database. Open the database page → `...` → `Connections` → add your integration.
 
 **"Missing required environment variables"**
-Double-check your `.env` file exists in the directory you're running from, and that all four required variables are set. Run `npx posthog-flags-to-notion --help` to see what's needed.
+Check your `.env` file exists in the directory you're running from, and all four required variables are set.
 
 **All group names show as raw IDs**
-PostHog only knows group names if your app calls `posthog.group('Company', id, { name: 'Acme Corp' })`. If names were never sent, PostHog has nothing to resolve. Check [PostHog → Groups](https://us.posthog.com/groups) to see what's stored.
+PostHog only knows group names if your app calls `posthog.group('Company', id, { name: 'Acme Corp' })`. If names were never sent, there's nothing to resolve. Check [PostHog → Groups](https://us.posthog.com/groups) to see what's stored.
 
 **EU users getting 401 or empty results**
-You're probably hitting the US endpoint. Add `POSTHOG_HOST=https://eu.posthog.com` to your `.env`.
+You're hitting the US endpoint. Add `POSTHOG_HOST=https://eu.posthog.com` to your `.env`.
 
 ## License
 
