@@ -162,6 +162,12 @@ Preview without writing to Notion:
 npx posthog-flags-to-notion --dry-run
 ```
 
+See all options:
+
+```bash
+npx posthog-flags-to-notion --help
+```
+
 ---
 
 ## Configuration reference
