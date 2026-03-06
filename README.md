@@ -11,42 +11,7 @@ Sync your PostHog feature flags to a Notion database so your whole team can see 
 
 Everyone needs the same answer: _which flags are on, and for whom?_ But the only people who can check are the engineers who set them up.
 
-## The solution
-
-Two ways to use this — pick whichever fits your workflow:
-
-### Option A: MCP Server (recommended)
-
-If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Cursor](https://cursor.sh), or any MCP-compatible tool, add this as an MCP server and just talk to your flags:
-
-> "Update the feature flags page"
->
-> "What flags does Acme Corp have?"
->
-> "Who has the collaboration flag enabled?"
-
-No Notion integration token needed if your MCP client already has Notion access. You get four tools:
-
-| Tool | What it does |
-|---|---|
-| `list_flags` | List all flags with resolved group names (read-only) |
-| `sync_flags_to_notion` | Sync flags to your Notion database |
-| `lookup_group` | Look up a group by ID or name |
-| `flags_for_group` | Find all flags targeting a specific group |
-
----
-
-### Option B: CLI (fallback)
-
-A single command that reads your PostHog feature flags and writes them to a Notion database:
-
-```
-npx posthog-flags-to-notion
-```
-
-No AI required. Works in CI, cron jobs, or just your terminal.
-
-### What you get
+## What you get
 
 A Notion database like this:
 
@@ -55,6 +20,8 @@ A Notion database like this:
 | `collaboration` | Collaborative editing | Active | Specific groups | Acme Corp, Globex, Initech |
 | `new_editor` | New block editor | Active | 50% rollout | *(50% of all users)* |
 | `hide_ai` | Hide AI features | Active | 0% rollout (effectively off) | |
+
+Real customer names — not opaque IDs like `pro_kQPmxiunojK0X`. Percentage rollouts get a plain-English summary instead of listing hundreds of groups.
 
 Optionally, a **directory table** mapping group names to IDs and tiers — so anyone can look up the raw ID if they need it.
 
@@ -66,6 +33,37 @@ Optionally, a **directory table** mapping group names to IDs and tiers — so an
 4. **Writes to Notion** via the Notion API — creates rows for new flags, updates existing ones
 
 No database access needed. No backend. Just two APIs.
+
+## Two ways to use it
+
+### Option A: MCP Server (recommended)
+
+If you use Claude Code, Cursor, or any MCP-compatible tool, add this as an MCP server and just talk to your flags:
+
+> "Update the feature flags page"
+>
+> "What flags does Acme Corp have?"
+>
+> "Who has the collaboration flag enabled?"
+
+Four tools:
+
+| Tool | What it does |
+|---|---|
+| `list_flags` | List all flags with resolved group names (read-only) |
+| `sync_flags_to_notion` | Sync flags to your Notion database |
+| `lookup_group` | Look up a group by ID or name |
+| `flags_for_group` | Find all flags targeting a specific group |
+
+### Option B: CLI
+
+A single command — no AI required. Works in CI, cron jobs, or just your terminal:
+
+```
+npx posthog-flags-to-notion
+```
+
+---
 
 ## Setup: MCP Server
 
@@ -122,6 +120,8 @@ Go to [PostHog → Settings → Personal API Keys](https://us.posthog.com/settin
 
 Then just ask: _"sync feature flags to Notion"_ or _"what flags does Acme have?"_
 
+---
+
 ## Setup: CLI
 
 ### 1. Configure
@@ -153,6 +153,7 @@ Preview without writing to Notion:
 ```bash
 npx posthog-flags-to-notion --dry-run
 ```
+
 ---
 
 ## Configuration
@@ -161,8 +162,8 @@ npx posthog-flags-to-notion --dry-run
 |---|---|---|---|
 | `POSTHOG_API_KEY` | Yes | — | PostHog personal API key |
 | `POSTHOG_PROJECT_ID` | Yes | — | Your PostHog project ID |
-| `NOTION_API_KEY` | Yes (CLI) | — | Notion integration token |
-| `NOTION_DATABASE_ID` | Yes (CLI) | — | Notion database to write flags to |
+| `NOTION_API_KEY` | Yes | — | Notion integration token |
+| `NOTION_DATABASE_ID` | Yes | — | Notion database to write flags to |
 | `POSTHOG_HOST` | No | `https://us.posthog.com` | PostHog instance URL (use `https://eu.posthog.com` for EU) |
 | `POSTHOG_GROUP_TYPE_INDEX` | No | `0` | Which PostHog group type to resolve (0 = first) |
 | `POSTHOG_GROUP_PROPERTY_KEY` | No | `project_id` | The property key in flag filters to match on |
