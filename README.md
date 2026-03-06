@@ -1,6 +1,6 @@
 # posthog-flags-to-notion
 
-One command syncs your PostHog feature flags to Notion — real customer names, not opaque IDs. Run it once and your whole team can see who has access to what, without needing PostHog access.
+Sync your PostHog feature flags to a Notion database. Your whole team can see which flags are on and for whom — without PostHog access and without knowing that `org_kQ7mxiunoj70X` is actually Acme Corp.
 
 ## What you get
 
