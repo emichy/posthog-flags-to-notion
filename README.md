@@ -14,13 +14,13 @@ Everyone needs the same answer: _which flags are on, and for whom?_ But the only
 
 A Notion database like this:
 
-| Flag Key | Description | Status | Targeting | Groups Enabled |
-|---|---|---|---|---|
-| `new_ui` | New IA sidebar | Active | Specific groups | Acme Corp, Globex, Initech |
-| `new_editor` | New block editor | Active | 50% rollout | *(50% of all orgs)* |
-| `hide_ai` | Hide AI features | Active | 0% rollout (effectively off) | |
+| Flag Key | Description | Status | Targeting | Groups Enabled | PostHog URL |
+|---|---|---|---|---|---|
+| `new_ui` | New IA sidebar | Active | Specific groups | Acme Corp, Globex, Initech | [Link](https://us.posthog.com/project/12345/feature_flags/1) |
+| `new_editor` | New block editor | Active | 50% rollout | *(50% of all orgs)* | [Link](https://us.posthog.com/project/12345/feature_flags/2) |
+| `hide_ai` | Hide AI features | Active | 0% rollout (effectively off) | | [Link](https://us.posthog.com/project/12345/feature_flags/3) |
 
-Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rollouts get a plain-English summary.
+Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rollouts get a plain-English summary. Every flag links directly to its PostHog page for one-click access.
 
 Optionally, a **directory table** mapping group names to IDs and tiers — so anyone can look up the raw ID if they need it.
 

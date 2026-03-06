@@ -20,6 +20,7 @@ export async function ensureSchema(notion, databaseId) {
     },
     Targeting: { rich_text: {} },
     "Groups Enabled": { rich_text: {} },
+    "PostHog URL": { url: {} },
     "Last Synced": { date: {} },
   };
 
@@ -100,6 +101,7 @@ export async function upsertFlag(notion, databaseId, existing, flag) {
     Status: { select: { name: flag.active ? "Active" : "Inactive" } },
     Targeting: { rich_text: richText(flag.targeting) },
     "Groups Enabled": { rich_text: richText(flag.groupsEnabled) },
+    "PostHog URL": { url: flag.posthogUrl || null },
     "Last Synced": { date: { start: new Date().toISOString().split("T")[0] } },
   };
 

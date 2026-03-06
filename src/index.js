@@ -61,6 +61,7 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
       active: f.active,
       targeting: f.targeting,
       groupsEnabled: names.join(", "),
+      posthogUrl: `${posthog.host}/project/${posthog.projectId}/feature_flags/${f.id}`,
     };
   });
 
