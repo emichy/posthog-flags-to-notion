@@ -52,14 +52,31 @@ Both options below require the same two things:
 
 Go to [PostHog → Settings → Personal API Keys](https://us.posthog.com/settings/user-api-keys) and create one.
 
-### 2. Notion integration
+### 2. Notion setup
 
-1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) and create an integration
+**Create an integration:**
+1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) and create a new integration
 2. Give it read/write access to your workspace
-3. Create a Notion database (or use an existing one) — it just needs a title column
-4. Share the database with your integration (click `...` → `Connections` → add your integration)
+3. Copy the integration token (starts with `secret_`)
 
-The tool auto-creates any missing columns on first run.
+**Create a database:**
+1. In Notion, create a new page and add an inline database (type `/database` and select "Table - Inline")
+2. Don't worry about columns — the tool auto-creates everything it needs on first run
+
+**Connect them:**
+1. On your database page, click `...` → `Connections` → add your integration
+
+**Find your database ID:**
+
+Your database ID is in the URL when you open the database. For example:
+
+```
+https://www.notion.so/myworkspace/abc123def456...
+                                  ^^^^^^^^^^^^^^
+                                  this is your database ID
+```
+
+If the URL has a `?v=` parameter, the database ID is the part *before* the `?`.
 
 ---
 
