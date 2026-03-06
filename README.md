@@ -34,6 +34,8 @@ No Notion integration token needed if your MCP client already has Notion access.
 | `lookup_group` | Look up a group by ID or name |
 | `flags_for_group` | Find all flags targeting a specific group |
 
+---
+
 ### Option B: CLI (fallback)
 
 A single command that reads your PostHog feature flags and writes them to a Notion database:
@@ -64,8 +66,6 @@ Optionally, a **directory table** mapping group names to IDs and tiers — so an
 4. **Writes to Notion** via the Notion API — creates rows for new flags, updates existing ones
 
 No database access needed. No backend. Just two APIs.
-
----
 
 ## Setup: MCP Server
 
@@ -122,8 +122,6 @@ Go to [PostHog → Settings → Personal API Keys](https://us.posthog.com/settin
 
 Then just ask: _"sync feature flags to Notion"_ or _"what flags does Acme have?"_
 
----
-
 ## Setup: CLI
 
 ### 1. Configure
@@ -155,7 +153,6 @@ Preview without writing to Notion:
 ```bash
 npx posthog-flags-to-notion --dry-run
 ```
-
 ---
 
 ## Configuration
