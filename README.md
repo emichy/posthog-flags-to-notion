@@ -4,8 +4,6 @@ Sync your PostHog feature flags to a Notion database so your whole team can see 
 
 ## The problem
 
-Feature flags are powerful, but they live in PostHog — behind a login most of your team never touches. Meanwhile:
-
 - **Customer Success** can't remember which customer got the latest beta, and just promised it to someone who doesn't have it
 - **Support** is trying to diagnose a bug and has no idea the customer is on a 50% rollout that hasn't reached them
 - **Product** drops a Slack message asking "who has collaboration enabled?" and waits 20 minutes for an engineer to check
