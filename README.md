@@ -23,8 +23,6 @@ PostHog feature flags use condition groups — each flag can have one or more se
 - **Combined** — both: "these 5 customers + 20% of everyone else."
 - **Property targeting** — if a flag targets by properties like `email` or `active_tier`, the tool shows the filter values (e.g. "Filtered by active_tier is not: free").
 
----
-
 ## Quick start
 
 If you have [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and the [Notion MCP server](https://github.com/makenotion/notion-mcp-server), you're three steps away. One person runs it, the whole team reads Notion.
@@ -49,8 +47,6 @@ Get one at [PostHog → Settings → Personal API Keys](https://us.posthog.com/s
 Open Claude Code, run `/agents` → `feature-flags`. On first run it'll ask for your PostHog project ID and Notion database ID. After that, it reads PostHog, resolves group IDs to customer names, and writes everything to Notion.
 
 That's it.
-
----
 
 ## Automate it
 
@@ -152,8 +148,6 @@ If you use Cursor or another MCP-compatible tool, add this as an MCP server and 
 }
 ```
 
----
-
 ## Setup details
 
 ### PostHog API key
@@ -192,8 +186,6 @@ https://www.notion.so/myworkspace/abc123def456...
 
 If the URL has a `?v=` parameter, the database ID is the part before the `?`.
 
----
-
 ## Configuration reference
 
 These env vars apply to the CLI, GitHub Actions, and MCP server. The Claude Code agent handles configuration conversationally.
@@ -229,8 +221,6 @@ If you set `NOTION_DIRECTORY_DATABASE_ID`, the tool creates a second table:
 |---|---|---|
 | Acme Corp | `cmp_abc123` | Enterprise |
 | Globex | `cmp_def456` | Business |
-
----
 
 ## Troubleshooting
 
