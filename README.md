@@ -46,6 +46,32 @@ No database access needed. No backend. Just two APIs.
 
 This started as a local Claude Code agent — Notion MCP for writing, PostHog API for reading flags. It worked great, but required having Claude Code and the Notion MCP server already wired up. This repo packages it so anyone can run it — no MCP setup required, no AI required. Just `npx` and two API keys.
 
+<details>
+<summary>Already have Claude Code + Notion MCP? You can skip all this.</summary>
+
+If you already have the [Notion MCP server](https://github.com/makenotion/notion-mcp-server) connected in Claude Code, you don't need this package. Just create a local agent that reads the PostHog API and writes to Notion via MCP:
+
+`~/.claude/agents/feature-flags.md`:
+
+```markdown
+You sync PostHog feature flags to a Notion database.
+
+1. Fetch all feature flags from the PostHog API:
+   GET https://us.posthog.com/api/projects/{PROJECT_ID}/feature_flags/
+   Authorization: Bearer {POSTHOG_API_KEY}
+
+2. For each flag, extract targeting rules and group IDs from filters.groups[].properties
+
+3. Resolve group IDs to names using the Groups API:
+   GET https://us.posthog.com/api/projects/{PROJECT_ID}/groups/?group_type_index=0&search={GROUP_ID}
+
+4. Write the results to the Notion database {YOUR_DATABASE_ID} using the Notion MCP tools
+```
+
+That's essentially what this tool does — but automated and without needing Claude in the loop.
+
+</details>
+
 ---
 
 ## Quick start
