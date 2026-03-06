@@ -23,9 +23,9 @@ PostHog feature flags use condition groups — each flag can have one or more se
 - **Combined** — both: "these 5 customers + 20% of everyone else."
 - **Property targeting** — if a flag targets by properties like `email` or `active_tier`, the tool shows the filter values (e.g. "Filtered by active_tier is not: free").
 
-## Quick start
+## Quick start (Claude Code)
 
-If you have [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and the [Notion MCP server](https://github.com/makenotion/notion-mcp-server), you're three steps away. One person runs it, the whole team reads Notion.
+If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with the [Notion MCP server](https://github.com/makenotion/notion-mcp-server), this is the fastest path. The agent file uses `curl` for PostHog and your existing Notion MCP connection to write — no npm package needed.
 
 **1. Copy the agent file:**
 
@@ -48,60 +48,9 @@ Open Claude Code, run `/agents` → `feature-flags`. On first run it'll ask for 
 
 That's it.
 
-## Automate it
+## MCP server
 
-Once you've validated the output (via the agent or the CLI), automate it with GitHub Actions so your Notion database stays current without anyone thinking about it.
-
-`.github/workflows/sync-flags.yml`:
-
-```yaml
-name: Sync PostHog flags to Notion
-on:
-  schedule:
-    - cron: "0 * * * *" # every hour
-  workflow_dispatch: # or trigger manually
-
-jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - run: npx -y posthog-flags-to-notion
-        env:
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
-          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-```
-
-Add your env vars as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) and you're done.
-
----
-
-## Without Claude Code
-
-If you don't use Claude Code or don't have the Notion MCP server, the same sync is available as a CLI tool and MCP server. These use the Notion API directly, so you'll need a [Notion integration token](#notion-integration) in addition to your PostHog key.
-
-### CLI
-
-```bash
-npx posthog-flags-to-notion --dry-run   # preview first
-npx posthog-flags-to-notion             # sync to Notion
-```
-
-Create a `.env` file (see [`.env.example`](.env.example)):
-
-```env
-POSTHOG_API_KEY=phx_your_key
-POSTHOG_PROJECT_ID=12345
-NOTION_API_KEY=secret_your_key
-NOTION_DATABASE_ID=your_database_id
-```
-
-### MCP server
-
-If you use Cursor or another MCP-compatible tool, add this as an MCP server and talk to your flags conversationally:
-
-> "What flags does Acme Corp have?" · "Who has the collaboration flag enabled?" · "Sync flags to Notion"
+If you use Cursor or another MCP-compatible client, add this as an MCP server. Unlike the Claude Code agent, this uses the Notion API directly — so you'll need a [Notion integration token](#notion-integration) instead of the Notion MCP server.
 
 | Tool | What it does |
 |---|---|
@@ -129,24 +78,52 @@ If you use Cursor or another MCP-compatible tool, add this as an MCP server and 
 }
 ```
 
-**Claude Code** — `~/.claude/settings.json`:
+## CLI
 
-```json
-{
-  "mcpServers": {
-    "posthog-flags": {
-      "command": "npx",
-      "args": ["-y", "posthog-flags-to-notion", "--mcp"],
-      "env": {
-        "POSTHOG_API_KEY": "phx_your_key",
-        "POSTHOG_PROJECT_ID": "12345",
-        "NOTION_API_KEY": "secret_your_key",
-        "NOTION_DATABASE_ID": "your_database_id"
-      }
-    }
-  }
-}
+No agent, no MCP — just run it. Same env vars as the MCP server.
+
+```bash
+npx posthog-flags-to-notion --dry-run   # preview first
+npx posthog-flags-to-notion             # sync to Notion
 ```
+
+Create a `.env` file (see [`.env.example`](.env.example)):
+
+```env
+POSTHOG_API_KEY=phx_your_key
+POSTHOG_PROJECT_ID=12345
+NOTION_API_KEY=secret_your_key
+NOTION_DATABASE_ID=your_database_id
+```
+
+---
+
+## Automate it
+
+Once you've validated the output, automate it with GitHub Actions so your Notion database stays current without anyone thinking about it.
+
+`.github/workflows/sync-flags.yml`:
+
+```yaml
+name: Sync PostHog flags to Notion
+on:
+  schedule:
+    - cron: "0 * * * *" # every hour
+  workflow_dispatch: # or trigger manually
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx -y posthog-flags-to-notion
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+```
+
+Add your env vars as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) and you're done.
 
 ## Setup details
 
@@ -165,7 +142,7 @@ https://us.posthog.com/project/12345/feature_flags
 
 ### Notion integration
 
-Only needed for the CLI, GitHub Actions, and MCP server paths — the Claude Code agent uses the Notion MCP server instead.
+Only needed for the MCP server, CLI, and GitHub Actions paths — the Claude Code agent uses the Notion MCP server instead.
 
 1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) and create a new integration
 2. Give it read/write access to your workspace
@@ -175,7 +152,7 @@ Only needed for the CLI, GitHub Actions, and MCP server paths — the Claude Cod
 
 1. Create a new page in Notion and add an inline database (type `/database` → "Table - Inline")
 2. Don't worry about columns — the tool auto-creates everything it needs on first run
-3. Connect your integration: click `...` → `Connections` → add it (not needed for the agent path)
+3. Connect your integration: click `...` → `Connections` → add it (not needed for the Claude Code agent path)
 
 Your database ID is in the URL:
 
