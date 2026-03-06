@@ -42,6 +42,10 @@ PostHog feature flags use **condition groups** — each flag can have one or mor
 
 No database access needed. No backend. Just two APIs.
 
+### Why this exists
+
+This started as a local Claude Code agent — Notion MCP for writing, PostHog API for reading flags. It worked great, but required having Claude Code and the Notion MCP server already wired up. This repo packages it so anyone can run it — no MCP setup required, no AI required. Just `npx` and two API keys.
+
 ---
 
 ## Quick start
