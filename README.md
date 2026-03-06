@@ -2,6 +2,9 @@
 
 Sync your PostHog feature flags to a Notion database. Your whole team can see which flags are on and for whom — without PostHog access and without knowing that `org_kQ7mxiunoj70X` is actually Acme Corp.
 
+**Pick your path:**
+[Claude Code](#quick-start-claude-code) · [Cursor & other MCP clients](#cursor--other-mcp-clients) · [CLI](#cli) · [Automate it](#automate-it)
+
 ## What you get
 
 A Notion database like this:
@@ -48,7 +51,7 @@ Open Claude Code, run `/agents` → `feature-flags`. On first run it'll ask for 
 
 That's it.
 
-## MCP server
+## Cursor & other MCP clients
 
 If you use Cursor or another MCP-compatible client, add this as an MCP server. Unlike the Claude Code agent, this uses the Notion API directly — so you'll need a [Notion integration token](#notion-integration) instead of the Notion MCP server.
 
