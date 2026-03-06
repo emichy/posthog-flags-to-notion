@@ -44,15 +44,44 @@ No database access needed. No backend. Just two APIs.
 
 ---
 
+## Quick start
+
+```env
+# .env
+POSTHOG_API_KEY=phx_...        # PostHog → Settings → Personal API Keys
+POSTHOG_PROJECT_ID=12345       # From your PostHog URL: /project/<this number>/
+NOTION_API_KEY=secret_...      # notion.so/my-integrations → create integration
+NOTION_DATABASE_ID=abc123...   # From your Notion database URL (see below)
+```
+
+```bash
+npx posthog-flags-to-notion --dry-run   # preview first
+npx posthog-flags-to-notion             # sync to Notion
+```
+
+> **EU PostHog users:** Add `POSTHOG_HOST=https://eu.posthog.com` to your `.env` — it defaults to `us.posthog.com`.
+
+---
+
 ## Setup
 
-Both options below require the same two things:
+Both options below require the same things:
 
 ### 1. PostHog personal API key
 
 Go to [PostHog → Settings → Personal API Keys](https://us.posthog.com/settings/user-api-keys) and create one.
 
-### 2. Notion setup
+### 2. PostHog project ID
+
+Your project ID is in the URL when you're in PostHog:
+
+```
+https://us.posthog.com/project/12345/feature_flags
+                               ^^^^^
+                               this is your project ID
+```
+
+### 3. Notion setup
 
 **Create an integration:**
 1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) and create a new integration
@@ -222,6 +251,22 @@ If you set `NOTION_DIRECTORY_DATABASE_ID`, the tool creates a second table:
 | Globex | `cmp_def456` | Business |
 
 Useful when someone asks "what's the ID for Acme?" — one place to look.
+
+---
+
+## Troubleshooting
+
+**"Cannot access Notion database"**
+Your Notion integration isn't connected to the database. Open the database page in Notion → click `...` → `Connections` → add your integration.
+
+**"Missing required environment variables"**
+Double-check your `.env` file exists in the directory you're running from, and that all four required variables are set. Run `npx posthog-flags-to-notion --help` to see what's needed.
+
+**All group names show as raw IDs**
+PostHog only knows group names if your app calls `posthog.group('Company', id, { name: 'Acme Corp' })`. If names were never sent, PostHog has nothing to resolve. Check [PostHog → Groups](https://us.posthog.com/groups) to see what's stored.
+
+**EU users getting 401 or empty results**
+You're probably hitting the US endpoint. Add `POSTHOG_HOST=https://eu.posthog.com` to your `.env`.
 
 ## License
 
