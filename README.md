@@ -284,6 +284,35 @@ Useful when someone asks "what's the ID for Acme?" — one place to look.
 
 ---
 
+## Automate it
+
+Run on a schedule with GitHub Actions so your Notion database stays up to date without anyone thinking about it:
+
+`.github/workflows/sync-flags.yml`:
+
+```yaml
+name: Sync PostHog flags to Notion
+on:
+  schedule:
+    - cron: "0 * * * *" # every hour
+  workflow_dispatch: # or trigger manually
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx -y posthog-flags-to-notion
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+```
+
+Add your env vars as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) and you're done.
+
+---
+
 ## Troubleshooting
 
 **"Cannot access Notion database"**
