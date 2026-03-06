@@ -1,0 +1,50 @@
+# posthog-flags-to-notion
+
+Sync PostHog feature flags to a Notion database. Resolves opaque group IDs to real customer names so your whole team can see which flags are on and for whom.
+
+## Usage
+
+There are three ways to use this tool:
+
+1. **Claude Code agent** — copy `agents/feature-flags.md` to `~/.claude/agents/`. Requires the Notion MCP server. No npm install needed.
+2. **MCP server** — `npx posthog-flags-to-notion --mcp` exposes tools (`list_flags`, `sync_flags_to_notion`, `lookup_group`, `flags_for_group`). Works with Cursor and other MCP clients. Requires `POSTHOG_API_KEY`, `POSTHOG_PROJECT_ID`, `NOTION_API_KEY`, `NOTION_DATABASE_ID`.
+3. **CLI** — `npx posthog-flags-to-notion` runs a one-shot sync. Same env vars as the MCP server. Use `--dry-run` to preview.
+
+## How it works
+
+1. Fetches all feature flags from the PostHog API
+2. Parses targeting rules — flags targeting specific groups get their IDs extracted; percentage rollouts get a plain-English summary
+3. Resolves group IDs to human-readable names using PostHog's Groups API
+4. Writes results to a Notion database — creates rows for new flags, updates existing ones
+
+## Configuration
+
+Required env vars (for CLI and MCP server):
+- `POSTHOG_API_KEY` — PostHog personal API key
+- `POSTHOG_PROJECT_ID` — your PostHog project ID
+- `NOTION_API_KEY` — Notion integration token
+- `NOTION_DATABASE_ID` — Notion database to write flags to
+
+Optional:
+- `POSTHOG_HOST` — defaults to `https://us.posthog.com`, use `https://eu.posthog.com` for EU
+- `POSTHOG_GROUP_TYPE_INDEX` — which group type to resolve (default: `0`)
+- `POSTHOG_GROUP_PROPERTY_KEY` — the property key in flag filters (default: `project_id`)
+- `NOTION_DIRECTORY_DATABASE_ID` — optional second database for group name/ID lookup
+- `SKIP_SURVEY_FLAGS` — skip survey targeting flags (default: `true`)
+
+## Notion database schema
+
+The tool auto-creates these columns:
+- **Description** (title): flag name from PostHog
+- **Flag Key** (url): link to the flag in PostHog
+- **Status** (select): Active or Inactive
+- **Targeting** (text): summary of targeting rules
+- **Groups Enabled** (text): comma-separated group names
+- **Last Updated** (date): date of last sync
+- **Notes** (text): manual column, never overwritten
+
+## Links
+
+- [README](https://github.com/emichy/posthog-flags-to-notion/blob/main/README.md)
+- [Agent file](https://github.com/emichy/posthog-flags-to-notion/blob/main/agents/feature-flags.md)
+- [npm package](https://www.npmjs.com/package/posthog-flags-to-notion)

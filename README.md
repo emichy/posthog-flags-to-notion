@@ -1,5 +1,9 @@
 # posthog-flags-to-notion
 
+[![npm version](https://img.shields.io/npm/v/posthog-flags-to-notion)](https://www.npmjs.com/package/posthog-flags-to-notion)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
+
 Sync your PostHog feature flags to a Notion database. Your whole team can see which flags are on and for whom — without PostHog access and without knowing that `org_kQ7mxiunoj70X` is actually Acme Corp.
 
 **Pick your path:**
@@ -30,7 +34,13 @@ PostHog feature flags use condition groups — each flag can have one or more se
 
 If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with the [Notion MCP server](https://github.com/makenotion/notion-mcp-server), this is the fastest path. The agent file uses `curl` for PostHog and your existing Notion MCP connection to write — no npm package needed.
 
-**1. Copy the agent file:**
+**1. Install the agent file:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/emichy/posthog-flags-to-notion/main/install.sh | bash
+```
+
+Or manually:
 
 ```bash
 curl -o ~/.claude/agents/feature-flags.md \
