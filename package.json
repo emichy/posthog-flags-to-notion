@@ -1,18 +1,28 @@
 {
   "name": "posthog-flags-to-notion",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sync PostHog feature flags to a Notion database. Make flag rollouts visible to your whole team.",
   "type": "module",
   "bin": {
-    "posthog-flags-to-notion": "./bin/cli.js"
+    "posthog-flags-to-notion": "./bin/cli.js",
+    "posthog-flags-mcp": "./bin/mcp.js"
   },
   "scripts": {
-    "start": "node bin/cli.js"
+    "start": "node bin/cli.js",
+    "mcp": "node bin/mcp.js"
   },
-  "keywords": ["posthog", "notion", "feature-flags", "sync"],
+  "keywords": [
+    "posthog",
+    "notion",
+    "feature-flags",
+    "sync",
+    "mcp",
+    "model-context-protocol"
+  ],
   "author": "emichy",
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@notionhq/client": "^2.2.15",
     "dotenv": "^16.4.5"
   }
