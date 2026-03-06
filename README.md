@@ -42,38 +42,11 @@ PostHog feature flags use **condition groups** — each flag can have one or mor
 
 No database access needed. No backend. Just two APIs.
 
-## Two ways to use it
-
-### Option A: MCP Server (recommended)
-
-If you use Claude Code, Cursor, or any MCP-compatible tool, add this as an MCP server and just talk to your flags:
-
-> "Update the feature flags page"
->
-> "What flags does Acme Corp have?"
->
-> "Who has the collaboration flag enabled?"
-
-Four tools:
-
-| Tool | What it does |
-|---|---|
-| `list_flags` | List all flags with resolved group names (read-only) |
-| `sync_flags_to_notion` | Sync flags to your Notion database |
-| `lookup_group` | Look up a group by ID or name |
-| `flags_for_group` | Find all flags targeting a specific group |
-
-### Option B: CLI
-
-A single command — no AI required. Works in CI, cron jobs, or just your terminal:
-
-```
-npx posthog-flags-to-notion
-```
-
 ---
 
-## Setup: MCP Server
+## Setup
+
+Both options below require the same two things:
 
 ### 1. PostHog personal API key
 
@@ -86,9 +59,32 @@ Go to [PostHog → Settings → Personal API Keys](https://us.posthog.com/settin
 3. Create a Notion database (or use an existing one) — it just needs a title column
 4. Share the database with your integration (click `...` → `Connections` → add your integration)
 
-### 3. Add to your MCP client
+The tool auto-creates any missing columns on first run.
 
-**Claude Code** (`~/.claude/settings.json`):
+---
+
+## Option A: MCP Server (recommended)
+
+If you use Claude Code, Cursor, or any MCP-compatible tool, add this as an MCP server and just talk to your flags:
+
+> "Update the feature flags page"
+>
+> "What flags does Acme Corp have?"
+>
+> "Who has the collaboration flag enabled?"
+
+### Available tools
+
+| Tool | What it does |
+|---|---|
+| `list_flags` | List all flags with resolved group names (read-only) |
+| `sync_flags_to_notion` | Sync flags to your Notion database |
+| `lookup_group` | Look up a group by ID or name |
+| `flags_for_group` | Find all flags targeting a specific group |
+
+### Add to Claude Code
+
+`~/.claude/settings.json`:
 
 ```json
 {
@@ -107,7 +103,9 @@ Go to [PostHog → Settings → Personal API Keys](https://us.posthog.com/settin
 }
 ```
 
-**Cursor** (`.cursor/mcp.json`):
+### Add to Cursor
+
+`.cursor/mcp.json`:
 
 ```json
 {
@@ -130,9 +128,11 @@ Then just ask: _"sync feature flags to Notion"_ or _"what flags does Acme have?"
 
 ---
 
-## Setup: CLI
+## Option B: CLI
 
-### 1. Configure
+No AI required. Works in CI, cron jobs, or just your terminal.
+
+### Configure
 
 Create a `.env` file (see [`.env.example`](.env.example)):
 
@@ -143,7 +143,7 @@ NOTION_API_KEY=secret_your_key
 NOTION_DATABASE_ID=your_database_id
 ```
 
-### 2. Run
+### Run
 
 ```bash
 npx posthog-flags-to-notion
@@ -164,7 +164,7 @@ npx posthog-flags-to-notion --dry-run
 
 ---
 
-## Configuration
+## Configuration reference
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -189,7 +189,7 @@ POSTHOG_GROUP_PROPERTY_KEY=company_id
 
 The tool uses PostHog's Groups API to look up the `name` property for each group key. This works automatically if your app calls `posthog.group('Company', id, { name: 'Acme Corp' })`.
 
-## Optional: Group directory
+### Group directory (optional)
 
 If you set `NOTION_DIRECTORY_DATABASE_ID`, the tool creates a second table:
 
