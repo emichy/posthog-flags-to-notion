@@ -1,0 +1,19 @@
+{
+  "name": "posthog-flags-to-notion",
+  "version": "1.0.0",
+  "description": "Sync PostHog feature flags to a Notion database. Make flag rollouts visible to your whole team.",
+  "type": "module",
+  "bin": {
+    "posthog-flags-to-notion": "./bin/cli.js"
+  },
+  "scripts": {
+    "start": "node bin/cli.js"
+  },
+  "keywords": ["posthog", "notion", "feature-flags", "sync"],
+  "author": "emichy",
+  "license": "MIT",
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "dotenv": "^16.4.5"
+  }
+}
