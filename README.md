@@ -1,6 +1,5 @@
 # posthog-flags-to-notion
 
-[![npm version](https://img.shields.io/npm/v/posthog-flags-to-notion)](https://www.npmjs.com/package/posthog-flags-to-notion)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
