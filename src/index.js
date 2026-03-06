@@ -36,18 +36,24 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
   const groupMap = new Map();
   if (allGroupIds.size > 0) {
     console.log(`\nResolving ${allGroupIds.size} group IDs to names...`);
+    let resolved = 0;
     for (const id of allGroupIds) {
-      const resolved = await resolveGroupName({
+      const result = await resolveGroupName({
         apiKey: posthog.apiKey,
         projectId: posthog.projectId,
         host: posthog.host,
         groupTypeIndex: posthog.groupTypeIndex,
         groupKey: id,
       });
-      groupMap.set(id, resolved || { name: id, tier: "" });
+      if (result) {
+        groupMap.set(id, result);
+        resolved++;
+      } else {
+        groupMap.set(id, { name: id, tier: "" });
+        console.log(`  Warning: Could not resolve group "${id}"`);
+      }
     }
-    const resolvedCount = [...groupMap.values()].filter((v) => v.name !== v.groupId).length;
-    console.log(`  Resolved ${resolvedCount}/${allGroupIds.size}`);
+    console.log(`  Resolved ${resolved}/${allGroupIds.size}`);
   }
 
   // Build flag data with resolved names
@@ -71,6 +77,7 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
       console.log(`  ${f.active ? "+" : "-"} ${f.key}`);
       console.log(`    ${f.targeting}`);
       if (f.groupsEnabled) console.log(`    Groups: ${f.groupsEnabled}`);
+      console.log(`    URL: ${f.posthogUrl}`);
     }
     if (notion.directoryDatabaseId && allGroupIds.size > 0) {
       console.log(`\n[DRY RUN] Would sync ${allGroupIds.size} directory entries`);
@@ -82,37 +89,42 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
   const client = createClient(notion.apiKey);
 
   console.log("\nSyncing flags to Notion...");
-  await ensureSchema(client, notion.databaseId);
+  const { titlePropName } = await ensureSchema(client, notion.databaseId);
   const existingFlags = await getExistingPages(client, notion.databaseId);
 
   let created = 0;
   let updated = 0;
+  let failed = 0;
   for (const f of flagData) {
-    const result = await upsertFlag(client, notion.databaseId, existingFlags, f);
+    const result = await upsertFlag(client, notion.databaseId, existingFlags, f, titlePropName);
     if (result === "created") created++;
-    else updated++;
+    else if (result === "updated") updated++;
+    else failed++;
   }
-  console.log(`  ${created} created, ${updated} updated`);
+  console.log(`  ${created} created, ${updated} updated${failed ? `, ${failed} failed` : ""}`);
 
   // Optional: Directory
   if (notion.directoryDatabaseId && allGroupIds.size > 0) {
     console.log("\nSyncing group directory...");
-    await ensureDirectorySchema(client, notion.directoryDatabaseId);
+    const { titlePropName: dirTitlePropName } = await ensureDirectorySchema(client, notion.directoryDatabaseId);
     const existingDir = await getExistingPages(client, notion.directoryDatabaseId);
 
     let dirCreated = 0;
     let dirUpdated = 0;
+    let dirFailed = 0;
     for (const [id, info] of groupMap) {
       const result = await upsertDirectoryEntry(
         client,
         notion.directoryDatabaseId,
         existingDir,
-        { groupId: id, name: info.name, tier: info.tier }
+        { groupId: id, name: info.name, tier: info.tier },
+        dirTitlePropName
       );
       if (result === "created") dirCreated++;
-      else dirUpdated++;
+      else if (result === "updated") dirUpdated++;
+      else dirFailed++;
     }
-    console.log(`  ${dirCreated} created, ${dirUpdated} updated`);
+    console.log(`  ${dirCreated} created, ${dirUpdated} updated${dirFailed ? `, ${dirFailed} failed` : ""}`);
   }
 
   console.log("\nDone!");

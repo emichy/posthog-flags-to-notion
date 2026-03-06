@@ -5,7 +5,17 @@ export function createClient(apiKey) {
 }
 
 export async function ensureSchema(notion, databaseId) {
-  const db = await notion.databases.retrieve({ database_id: databaseId });
+  let db;
+  try {
+    db = await notion.databases.retrieve({ database_id: databaseId });
+  } catch (e) {
+    throw new Error(
+      `Cannot access Notion database ${databaseId}. ` +
+      `Make sure the database exists and is shared with your integration. ` +
+      `(${e.message})`
+    );
+  }
+
   const existing = Object.keys(db.properties);
 
   const needed = {
@@ -30,18 +40,29 @@ export async function ensureSchema(notion, databaseId) {
   }
 
   if (Object.keys(updates).length > 0) {
-    await notion.databases.update({
-      database_id: databaseId,
-      properties: updates,
-    });
+    await notion.databases.update({ database_id: databaseId, properties: updates });
     console.log(`  Added columns: ${Object.keys(updates).join(", ")}`);
   }
 
-  return db;
+  // Find the title property name once and return it
+  const titlePropName = Object.entries(db.properties)
+    .find(([, v]) => v.type === "title")?.[0] || "Name";
+
+  return { db, titlePropName };
 }
 
 export async function ensureDirectorySchema(notion, databaseId) {
-  const db = await notion.databases.retrieve({ database_id: databaseId });
+  let db;
+  try {
+    db = await notion.databases.retrieve({ database_id: databaseId });
+  } catch (e) {
+    throw new Error(
+      `Cannot access Notion directory database ${databaseId}. ` +
+      `Make sure the database exists and is shared with your integration. ` +
+      `(${e.message})`
+    );
+  }
+
   const existing = Object.keys(db.properties);
 
   const needed = {
@@ -55,14 +76,14 @@ export async function ensureDirectorySchema(notion, databaseId) {
   }
 
   if (Object.keys(updates).length > 0) {
-    await notion.databases.update({
-      database_id: databaseId,
-      properties: updates,
-    });
+    await notion.databases.update({ database_id: databaseId, properties: updates });
     console.log(`  Added directory columns: ${Object.keys(updates).join(", ")}`);
   }
 
-  return db;
+  const titlePropName = Object.entries(db.properties)
+    .find(([, v]) => v.type === "title")?.[0] || "Name";
+
+  return { db, titlePropName };
 }
 
 export async function getExistingPages(notion, databaseId) {
@@ -84,16 +105,11 @@ function richText(text) {
   return [{ text: { content: text.slice(0, 2000) } }];
 }
 
-function getTitleText(page) {
-  const titleProp = Object.values(page.properties).find((p) => p.type === "title");
-  return titleProp?.title?.[0]?.plain_text || "";
-}
-
 function getRichText(page, propName) {
   return page.properties[propName]?.rich_text?.[0]?.plain_text || "";
 }
 
-export async function upsertFlag(notion, databaseId, existing, flag) {
+export async function upsertFlag(notion, databaseId, existing, flag, titlePropName) {
   const match = existing.find((p) => getRichText(p, "Flag Key") === flag.key);
 
   const properties = {
@@ -105,21 +121,22 @@ export async function upsertFlag(notion, databaseId, existing, flag) {
     "Last Synced": { date: { start: new Date().toISOString().split("T")[0] } },
   };
 
-  if (match) {
-    await notion.pages.update({ page_id: match.id, properties });
-    return "updated";
-  } else {
-    const titlePropName = Object.entries(
-      (await notion.databases.retrieve({ database_id: databaseId })).properties
-    ).find(([, v]) => v.type === "title")?.[0] || "Name";
-
-    properties[titlePropName] = { title: richText(flag.name) };
-    await notion.pages.create({ parent: { database_id: databaseId }, properties });
-    return "created";
+  try {
+    if (match) {
+      await notion.pages.update({ page_id: match.id, properties });
+      return "updated";
+    } else {
+      properties[titlePropName] = { title: richText(flag.name) };
+      await notion.pages.create({ parent: { database_id: databaseId }, properties });
+      return "created";
+    }
+  } catch (e) {
+    console.log(`  Warning: Failed to sync flag "${flag.key}": ${e.message}`);
+    return "failed";
   }
 }
 
-export async function upsertDirectoryEntry(notion, databaseId, existing, entry) {
+export async function upsertDirectoryEntry(notion, databaseId, existing, entry, titlePropName) {
   const match = existing.find((p) => getRichText(p, "Group ID") === entry.groupId);
 
   const properties = {
@@ -127,16 +144,17 @@ export async function upsertDirectoryEntry(notion, databaseId, existing, entry) 
     Tier: { rich_text: richText(entry.tier) },
   };
 
-  if (match) {
-    await notion.pages.update({ page_id: match.id, properties });
-    return "updated";
-  } else {
-    const titlePropName = Object.entries(
-      (await notion.databases.retrieve({ database_id: databaseId })).properties
-    ).find(([, v]) => v.type === "title")?.[0] || "Name";
-
-    properties[titlePropName] = { title: richText(entry.name) };
-    await notion.pages.create({ parent: { database_id: databaseId }, properties });
-    return "created";
+  try {
+    if (match) {
+      await notion.pages.update({ page_id: match.id, properties });
+      return "updated";
+    } else {
+      properties[titlePropName] = { title: richText(entry.name) };
+      await notion.pages.create({ parent: { database_id: databaseId }, properties });
+      return "created";
+    }
+  } catch (e) {
+    console.log(`  Warning: Failed to sync directory entry "${entry.name}": ${e.message}`);
+    return "failed";
   }
 }
