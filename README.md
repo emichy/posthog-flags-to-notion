@@ -4,9 +4,8 @@ Sync your PostHog feature flags to a Notion database so your whole team can see 
 
 ## The problem
 
-- **Customer Success** can't remember which customer got the latest beta, and just promised it to someone who doesn't have it
-- **Support** is trying to diagnose a bug and has no idea the customer is on a 50% rollout that hasn't reached them
-- **Product** drops a Slack message asking "who has collaboration enabled?" and waits 20 minutes for an engineer to check
+- **Customer Success** forgets a customer is in a beta and gets confused on a call
+- **Product** drops a Slack message asking "who has the "new UI' flag enabled?"
 - **Marketing** wants to announce a feature but doesn't know if the top accounts can actually see it yet
 
 Everyone needs the same answer: _which flags are on, and for whom?_ But the only people who can check are the engineers who set them up.
@@ -21,7 +20,7 @@ A Notion database like this:
 | `new_editor` | New block editor | Active | 50% rollout | *(50% of all users)* |
 | `hide_ai` | Hide AI features | Active | 0% rollout (effectively off) | |
 
-Real customer names — not opaque IDs like `pro_kQPmxiunojK0X`. Percentage rollouts get a plain-English summary instead of listing hundreds of groups.
+Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rollouts get a plain-English summary.
 
 Optionally, a **directory table** mapping group names to IDs and tiers — so anyone can look up the raw ID if they need it.
 
