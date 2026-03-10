@@ -1,5 +1,6 @@
 # posthog-flags-to-notion
 
+[![npm](https://img.shields.io/npm/v/posthog-flags-to-notion)](https://www.npmjs.com/package/posthog-flags-to-notion)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
@@ -18,7 +19,7 @@ A Notion database like this:
 | `new_editor` | New block editor | Active | 50% rollout | *(50% of all orgs)* | `us.posthog.com/project/.../feature_flags/2` |
 | `hide_ai` | Hide AI features | Active | 0% rollout (effectively off) | | `us.posthog.com/project/.../feature_flags/3` |
 
-Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rollouts get a plain-English summary. Every flag links directly to its PostHog page.
+Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rollouts get a plain-English summary. Every flag links directly to its PostHog page. Flags deleted from PostHog are automatically marked **Archived** so your table stays trustworthy.
 
 ### How targeting works
 

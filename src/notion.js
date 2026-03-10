@@ -1,5 +1,27 @@
 import { Client } from "@notionhq/client";
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const RATE_LIMIT_DELAY = 350; // ~3 req/s with headroom
+const MAX_RETRIES = 3;
+
+async function notionRequest(fn) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) await sleep(RATE_LIMIT_DELAY);
+      return await fn();
+    } catch (e) {
+      if (e?.status === 429 && attempt < MAX_RETRIES) {
+        const retryAfter = (e?.headers?.["retry-after"] || 1) * 1000;
+        console.log(`  Rate limited, retrying in ${retryAfter}ms...`);
+        await sleep(retryAfter);
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+
 export function createClient(apiKey) {
   return new Client({ auth: apiKey });
 }
@@ -7,7 +29,7 @@ export function createClient(apiKey) {
 export async function ensureSchema(notion, databaseId) {
   let db;
   try {
-    db = await notion.databases.retrieve({ database_id: databaseId });
+    db = await notionRequest(() => notion.databases.retrieve({ database_id: databaseId }));
   } catch (e) {
     throw new Error(
       `Cannot access Notion database ${databaseId}. ` +
@@ -25,6 +47,7 @@ export async function ensureSchema(notion, databaseId) {
         options: [
           { name: "Active", color: "green" },
           { name: "Inactive", color: "red" },
+          { name: "Archived", color: "default" },
         ],
       },
     },
@@ -40,7 +63,7 @@ export async function ensureSchema(notion, databaseId) {
   }
 
   if (Object.keys(updates).length > 0) {
-    await notion.databases.update({ database_id: databaseId, properties: updates });
+    await notionRequest(() => notion.databases.update({ database_id: databaseId, properties: updates }));
     console.log(`  Added columns: ${Object.keys(updates).join(", ")}`);
   }
 
@@ -54,7 +77,7 @@ export async function ensureSchema(notion, databaseId) {
 export async function ensureDirectorySchema(notion, databaseId) {
   let db;
   try {
-    db = await notion.databases.retrieve({ database_id: databaseId });
+    db = await notionRequest(() => notion.databases.retrieve({ database_id: databaseId }));
   } catch (e) {
     throw new Error(
       `Cannot access Notion directory database ${databaseId}. ` +
@@ -76,7 +99,7 @@ export async function ensureDirectorySchema(notion, databaseId) {
   }
 
   if (Object.keys(updates).length > 0) {
-    await notion.databases.update({ database_id: databaseId, properties: updates });
+    await notionRequest(() => notion.databases.update({ database_id: databaseId, properties: updates }));
     console.log(`  Added directory columns: ${Object.keys(updates).join(", ")}`);
   }
 
@@ -90,10 +113,12 @@ export async function getExistingPages(notion, databaseId) {
   const pages = [];
   let cursor;
   do {
-    const res = await notion.databases.query({
-      database_id: databaseId,
-      start_cursor: cursor,
-    });
+    const res = await notionRequest(() =>
+      notion.databases.query({
+        database_id: databaseId,
+        start_cursor: cursor,
+      })
+    );
     pages.push(...res.results);
     cursor = res.has_more ? res.next_cursor : undefined;
   } while (cursor);
@@ -123,17 +148,46 @@ export async function upsertFlag(notion, databaseId, existing, flag, titlePropNa
 
   try {
     if (match) {
-      await notion.pages.update({ page_id: match.id, properties });
+      await notionRequest(() => notion.pages.update({ page_id: match.id, properties }));
       return "updated";
     } else {
       properties[titlePropName] = { title: richText(flag.name) };
-      await notion.pages.create({ parent: { database_id: databaseId }, properties });
+      await notionRequest(() => notion.pages.create({ parent: { database_id: databaseId }, properties }));
       return "created";
     }
   } catch (e) {
     console.log(`  Warning: Failed to sync flag "${flag.key}": ${e.message}`);
     return "failed";
   }
+}
+
+export async function archiveStaleFlags(notion, databaseId, existing, currentFlagKeys) {
+  const stale = existing.filter((p) => {
+    const key = getRichText(p, "Flag Key");
+    if (!key) return false;
+    const status = p.properties.Status?.select?.name;
+    if (status === "Archived") return false;
+    return !currentFlagKeys.has(key);
+  });
+
+  let archived = 0;
+  for (const page of stale) {
+    try {
+      await notionRequest(() =>
+        notion.pages.update({
+          page_id: page.id,
+          properties: {
+            Status: { select: { name: "Archived" } },
+          },
+        })
+      );
+      archived++;
+    } catch (e) {
+      const key = getRichText(page, "Flag Key");
+      console.log(`  Warning: Failed to archive "${key}": ${e.message}`);
+    }
+  }
+  return archived;
 }
 
 export async function upsertDirectoryEntry(notion, databaseId, existing, entry, titlePropName) {
@@ -146,11 +200,11 @@ export async function upsertDirectoryEntry(notion, databaseId, existing, entry, 
 
   try {
     if (match) {
-      await notion.pages.update({ page_id: match.id, properties });
+      await notionRequest(() => notion.pages.update({ page_id: match.id, properties }));
       return "updated";
     } else {
       properties[titlePropName] = { title: richText(entry.name) };
-      await notion.pages.create({ parent: { database_id: databaseId }, properties });
+      await notionRequest(() => notion.pages.create({ parent: { database_id: databaseId }, properties }));
       return "created";
     }
   } catch (e) {

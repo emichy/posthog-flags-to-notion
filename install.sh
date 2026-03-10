@@ -19,6 +19,23 @@ fi
 curl -fsSL -o "$DEST" "$AGENT_URL"
 echo "Installed to $DEST"
 echo ""
+
+# Check for Notion MCP server
+NOTION_MCP=false
+for f in "$HOME/.claude/settings.json" "$HOME/.claude/settings.local.json"; do
+  if [ -f "$f" ] && grep -q "notion" "$f" 2>/dev/null; then
+    NOTION_MCP=true
+    break
+  fi
+done
+
+if [ "$NOTION_MCP" = false ]; then
+  echo "⚠  Notion MCP server not detected in your Claude Code settings."
+  echo "   The agent needs it to write to Notion. Set it up first:"
+  echo "   https://github.com/makenotion/notion-mcp-server"
+  echo ""
+fi
+
 echo "Next steps:"
 echo "  1. Store your PostHog API key:  echo \"phx_your_key\" > ~/.posthog-api-key"
 echo "  2. Open Claude Code and run /agents → feature-flags"

@@ -6,6 +6,7 @@ import {
   getExistingPages,
   upsertFlag,
   upsertDirectoryEntry,
+  archiveStaleFlags,
 } from "./notion.js";
 
 export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
@@ -102,6 +103,11 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
     else failed++;
   }
   console.log(`  ${created} created, ${updated} updated${failed ? `, ${failed} failed` : ""}`);
+
+  // Archive flags that no longer exist in PostHog
+  const currentFlagKeys = new Set(flagData.map((f) => f.key));
+  const archived = await archiveStaleFlags(client, notion.databaseId, existingFlags, currentFlagKeys);
+  if (archived > 0) console.log(`  ${archived} archived (deleted from PostHog)`);
 
   // Optional: Directory
   if (notion.directoryDatabaseId && allGroupIds.size > 0) {
