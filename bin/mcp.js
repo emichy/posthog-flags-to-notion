@@ -9,7 +9,7 @@ import { getConfig, validateConfig } from "../src/config.js";
 
 const server = new McpServer({
   name: "posthog-flags-to-notion",
-  version: "1.3.0",
+  version: "1.3.1",
 });
 
 function errorResult(msg) {
@@ -30,12 +30,12 @@ server.tool(
       const flags = await fetchFlags(config.posthog);
       const allGroupIds = new Set();
       const analyzed = flags
-        .filter((f) => !f.key.startsWith("survey-targeting-"))
         .map((f) => {
           const { targeting, targetedIds } = analyzeFlag(f, config.posthog.groupPropertyKey);
-          targetedIds.forEach((id) => allGroupIds.add(id));
           return { key: f.key, name: f.name, active: f.active, targeting, targetedIds };
-        });
+        })
+        .filter((f) => !(f.key.startsWith("survey-targeting-") && f.targetedIds.length === 0));
+      analyzed.forEach((f) => f.targetedIds.forEach((id) => allGroupIds.add(id)));
 
       const groupMap = new Map();
       for (const id of allGroupIds) {
@@ -142,15 +142,20 @@ server.tool(
     if (missing.length) return errorResult(`Missing env vars: ${missing.join(", ")}`);
 
     try {
-      // If query doesn't look like a raw ID, resolve name to ID first
+      // Resolve query to a group ID. For ID-shaped queries we verify exact
+      // group_key match because PostHog's search= is fuzzy and can return a
+      // false positive. Only fall back to fuzzy first-result for name-like queries.
       let searchId = query;
-      if (!/^[a-z]{2,5}_/.test(query)) {
-        const res = await fetch(
-          `${config.posthog.host}/api/projects/${config.posthog.projectId}/groups/?group_type_index=${config.posthog.groupTypeIndex}&search=${encodeURIComponent(query)}`,
-          { headers: { Authorization: `Bearer ${config.posthog.apiKey}` } }
-        );
+      const res = await fetch(
+        `${config.posthog.host}/api/projects/${config.posthog.projectId}/groups/?group_type_index=${config.posthog.groupTypeIndex}&search=${encodeURIComponent(query)}`,
+        { headers: { Authorization: `Bearer ${config.posthog.apiKey}` } }
+      );
+      if (res.ok) {
         const data = await res.json();
-        if (data.results?.length) {
+        const exact = (data.results || []).find((g) => g.group_key === query);
+        if (exact) {
+          searchId = exact.group_key;
+        } else if (!/^[a-z]{2,5}_/.test(query) && data.results?.length) {
           searchId = data.results[0].group_key;
         }
       }

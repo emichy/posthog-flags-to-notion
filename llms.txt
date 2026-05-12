@@ -4,47 +4,65 @@ Sync PostHog feature flags to a Notion database. Resolves opaque group IDs to re
 
 ## Usage
 
-There are three ways to use this tool:
+Three entry points:
 
-1. **Claude Code agent** — copy `agents/feature-flags.md` to `~/.claude/agents/`. Requires the Notion MCP server. No npm install needed.
-2. **MCP server** — `npx posthog-flags-to-notion --mcp` exposes tools (`list_flags`, `sync_flags_to_notion`, `lookup_group`, `flags_for_group`). Works with Cursor and other MCP clients. Requires `POSTHOG_API_KEY`, `POSTHOG_PROJECT_ID`, `NOTION_API_KEY`, `NOTION_DATABASE_ID`.
-3. **CLI** — `npx posthog-flags-to-notion` runs a one-shot sync. Same env vars as the MCP server. Use `--dry-run` to preview.
+1. **Claude Code agent** — `curl -fsSL https://raw.githubusercontent.com/emichy/posthog-flags-to-notion/main/install.sh | bash` drops the agent at `~/.claude/agents/feature-flags.md`. Uses the Notion MCP server. No npm install required.
+2. **MCP server** — `npx posthog-flags-to-notion --mcp` exposes tools (`list_flags`, `sync_flags_to_notion`, `lookup_group`, `flags_for_group`) for Cursor and other MCP clients.
+3. **CLI** — `npx posthog-flags-to-notion` runs a one-shot sync. `--dry-run` previews without writing.
 
 ## How it works
 
 1. Fetches all feature flags from the PostHog API
 2. Parses targeting rules — flags targeting specific groups get their IDs extracted; percentage rollouts get a plain-English summary
-3. Resolves group IDs to human-readable names using PostHog's Groups API
-4. Writes results to a Notion database — creates rows for new flags, updates existing ones
+3. Resolves group IDs to names using PostHog's Groups API (with exact `group_key` match to avoid false positives from fuzzy search)
+4. Builds a reverse index of `groupId → [flagKeys]` so the directory table can show which flags each group is in
+5. Writes results to Notion — creates new rows, updates existing ones, archives flags that no longer exist in PostHog
+6. Never writes to the `Notes` column — reserved for manual annotations
 
 ## Configuration
 
-Required env vars (for CLI and MCP server):
+Required env vars (CLI + MCP server only — the Claude Code agent prompts for these conversationally):
 - `POSTHOG_API_KEY` — PostHog personal API key
 - `POSTHOG_PROJECT_ID` — your PostHog project ID
 - `NOTION_API_KEY` — Notion integration token
-- `NOTION_DATABASE_ID` — Notion database to write flags to
+- `NOTION_DATABASE_ID` — Notion database for the flag table
 
 Optional:
 - `POSTHOG_HOST` — defaults to `https://us.posthog.com`, use `https://eu.posthog.com` for EU
 - `POSTHOG_GROUP_TYPE_INDEX` — which group type to resolve (default: `0`)
 - `POSTHOG_GROUP_PROPERTY_KEY` — the property key in flag filters (default: `project_id`)
-- `NOTION_DIRECTORY_DATABASE_ID` — optional second database for group name/ID lookup
-- `SKIP_SURVEY_FLAGS` — skip survey targeting flags (default: `true`)
+- `NOTION_DIRECTORY_DATABASE_ID` — optional second database for group lookup
+- `SKIP_SURVEY_FLAGS` — skip `survey-targeting-*` flags **only when they have no project targeting** (default: `true`)
 
-## Notion database schema
+## Notion schema (auto-created)
 
-The tool auto-creates these columns:
-- **Description** (title): flag name from PostHog
-- **Flag Key** (url): link to the flag in PostHog
-- **Status** (select): Active or Inactive
-- **Targeting** (text): summary of targeting rules
-- **Groups Enabled** (text): comma-separated group names
-- **Last Updated** (date): date of last sync
-- **Notes** (text): manual column, never overwritten
+Flag table:
+- title column (whatever you named it) — flag name from PostHog
+- `Flag Key` (rich_text) — short flag key, e.g. `new_ui`. Dedup uses this column.
+- `Status` (select) — Active / Inactive / Archived
+- `Targeting` (rich_text) — summary of targeting rules
+- `Groups Enabled` (rich_text) — comma-separated resolved group names
+- `PostHog URL` (url) — link to the flag in PostHog
+- `Last Synced` (date) — date of last sync
+- `Notes` (rich_text) — **never written by the tool**; safe for manual annotations
+
+Directory table (optional):
+- title column — group name
+- `Group ID` (rich_text) — PostHog group key, deduplicated
+- `Tier` (rich_text) — from `active_tier` group property
+- `Feature Flags` (multi_select) — every flag key that targets this group
+
+## Resilience
+
+- Notion API calls are rate-limited (~3 req/s) with 429 retry
+- Group lookups require an exact `group_key` match before trusting a row
+- `Flag Key` matching is type-agnostic — works whether the column is rich_text, url, or title-typed
+- Re-runs are idempotent: one row per flag, one row per group, regardless of how many flags reference a group
+- Refuses to sync if PostHog returns zero flags (prevents wiping the Notion table on a misconfigured API key)
 
 ## Links
 
 - [README](https://github.com/emichy/posthog-flags-to-notion/blob/main/README.md)
 - [Agent file](https://github.com/emichy/posthog-flags-to-notion/blob/main/agents/feature-flags.md)
 - [npm package](https://www.npmjs.com/package/posthog-flags-to-notion)
+- [Issues](https://github.com/emichy/posthog-flags-to-notion/issues)

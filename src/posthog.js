@@ -22,7 +22,9 @@ export async function resolveGroupName({ apiKey, projectId, host, groupTypeIndex
   );
   if (!res.ok) return null;
   const data = await res.json();
-  const group = data.results?.[0];
+  // PostHog's search= is fuzzy and can return a non-matching result.
+  // Require an exact group_key match before trusting the row.
+  const group = (data.results || []).find((g) => g.group_key === groupKey);
   if (!group) return null;
   return {
     name: group.group_properties?.name || groupKey,

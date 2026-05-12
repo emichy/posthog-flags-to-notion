@@ -40,6 +40,7 @@ export async function ensureSchema(notion, databaseId) {
 
   const existing = Object.keys(db.properties);
 
+  // Notes is in the schema but we NEVER write to it — it's user-owned.
   const needed = {
     "Flag Key": { rich_text: {} },
     Status: {
@@ -55,6 +56,7 @@ export async function ensureSchema(notion, databaseId) {
     "Groups Enabled": { rich_text: {} },
     "PostHog URL": { url: {} },
     "Last Synced": { date: {} },
+    Notes: { rich_text: {} },
   };
 
   const updates = {};
@@ -65,13 +67,18 @@ export async function ensureSchema(notion, databaseId) {
   if (Object.keys(updates).length > 0) {
     await notionRequest(() => notion.databases.update({ database_id: databaseId, properties: updates }));
     console.log(`  Added columns: ${Object.keys(updates).join(", ")}`);
+    // db.properties is from the pre-update retrieve; reflect what we just
+    // created so downstream type-checks see the new columns on first run.
+    for (const [name, config] of Object.entries(updates)) {
+      const type = Object.keys(config)[0];
+      db.properties[name] = { ...config, type };
+    }
   }
 
-  // Find the title property name once and return it
   const titlePropName = Object.entries(db.properties)
     .find(([, v]) => v.type === "title")?.[0] || "Name";
 
-  return { db, titlePropName };
+  return { db, titlePropName, properties: db.properties };
 }
 
 export async function ensureDirectorySchema(notion, databaseId) {
@@ -91,6 +98,7 @@ export async function ensureDirectorySchema(notion, databaseId) {
   const needed = {
     "Group ID": { rich_text: {} },
     Tier: { rich_text: {} },
+    "Feature Flags": { multi_select: { options: [] } },
   };
 
   const updates = {};
@@ -101,12 +109,16 @@ export async function ensureDirectorySchema(notion, databaseId) {
   if (Object.keys(updates).length > 0) {
     await notionRequest(() => notion.databases.update({ database_id: databaseId, properties: updates }));
     console.log(`  Added directory columns: ${Object.keys(updates).join(", ")}`);
+    for (const [name, config] of Object.entries(updates)) {
+      const type = Object.keys(config)[0];
+      db.properties[name] = { ...config, type };
+    }
   }
 
   const titlePropName = Object.entries(db.properties)
     .find(([, v]) => v.type === "title")?.[0] || "Name";
 
-  return { db, titlePropName };
+  return { db, titlePropName, properties: db.properties };
 }
 
 export async function getExistingPages(notion, databaseId) {
@@ -127,23 +139,54 @@ export async function getExistingPages(notion, databaseId) {
 
 function richText(text) {
   if (!text) return [];
-  return [{ text: { content: text.slice(0, 2000) } }];
+  return [{ text: { content: String(text).slice(0, 2000) } }];
 }
 
-function getRichText(page, propName) {
-  return page.properties[propName]?.rich_text?.[0]?.plain_text || "";
+// Read a property's plain-text value regardless of whether it's typed as
+// rich_text, url, title, or select. Users sometimes change a column type in
+// Notion after first run; we want dedup to keep working.
+function readPropertyValue(page, propName) {
+  const prop = page.properties?.[propName];
+  if (!prop) return "";
+  switch (prop.type) {
+    case "rich_text":
+      return prop.rich_text?.[0]?.plain_text || "";
+    case "url":
+      return prop.url || "";
+    case "title":
+      return prop.title?.[0]?.plain_text || "";
+    case "select":
+      return prop.select?.name || "";
+    default:
+      return "";
+  }
 }
 
-export async function upsertFlag(notion, databaseId, existing, flag, titlePropName) {
-  const match = existing.find((p) => getRichText(p, "Flag Key") === flag.key);
+function valueForType(propType, value) {
+  switch (propType) {
+    case "url":
+      return { url: value || null };
+    case "title":
+      return { title: richText(value) };
+    case "rich_text":
+    default:
+      return { rich_text: richText(value) };
+  }
+}
+
+export async function upsertFlag(notion, databaseId, existing, flag, titlePropName, schemaProps) {
+  const flagKeyType = schemaProps?.["Flag Key"]?.type || "rich_text";
+
+  const match = existing.find((p) => readPropertyValue(p, "Flag Key") === flag.key);
 
   const properties = {
-    "Flag Key": { rich_text: richText(flag.key) },
+    "Flag Key": valueForType(flagKeyType, flag.key),
     Status: { select: { name: flag.active ? "Active" : "Inactive" } },
     Targeting: { rich_text: richText(flag.targeting) },
     "Groups Enabled": { rich_text: richText(flag.groupsEnabled) },
     "PostHog URL": { url: flag.posthogUrl || null },
     "Last Synced": { date: { start: new Date().toISOString().split("T")[0] } },
+    // Notes deliberately omitted — user-owned, never overwrite.
   };
 
   try {
@@ -163,7 +206,7 @@ export async function upsertFlag(notion, databaseId, existing, flag, titlePropNa
 
 export async function archiveStaleFlags(notion, databaseId, existing, currentFlagKeys) {
   const stale = existing.filter((p) => {
-    const key = getRichText(p, "Flag Key");
+    const key = readPropertyValue(p, "Flag Key");
     if (!key) return false;
     const status = p.properties.Status?.select?.name;
     if (status === "Archived") return false;
@@ -183,20 +226,28 @@ export async function archiveStaleFlags(notion, databaseId, existing, currentFla
       );
       archived++;
     } catch (e) {
-      const key = getRichText(page, "Flag Key");
+      const key = readPropertyValue(page, "Flag Key");
       console.log(`  Warning: Failed to archive "${key}": ${e.message}`);
     }
   }
   return archived;
 }
 
-export async function upsertDirectoryEntry(notion, databaseId, existing, entry, titlePropName) {
-  const match = existing.find((p) => getRichText(p, "Group ID") === entry.groupId);
+export async function upsertDirectoryEntry(notion, databaseId, existing, entry, titlePropName, schemaProps) {
+  const match = existing.find((p) => readPropertyValue(p, "Group ID") === entry.groupId);
+
+  const hasFeatureFlagsColumn = schemaProps?.["Feature Flags"]?.type === "multi_select";
 
   const properties = {
     "Group ID": { rich_text: richText(entry.groupId) },
     Tier: { rich_text: richText(entry.tier) },
   };
+
+  if (hasFeatureFlagsColumn) {
+    properties["Feature Flags"] = {
+      multi_select: (entry.flagKeys || []).map((name) => ({ name: String(name).slice(0, 100) })),
+    };
+  }
 
   try {
     if (match) {

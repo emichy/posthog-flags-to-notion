@@ -16,22 +16,34 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
   const flags = await fetchFlags(posthog);
   console.log(`  Found ${flags.length} flags`);
 
-  // Filter
-  const filtered = flags.filter((f) => {
-    if (skipSurveyFlags && f.key.startsWith("survey-targeting-")) return false;
-    return true;
-  });
-  const skipped = flags.length - filtered.length;
-  if (skipped) console.log(`  Skipping ${skipped} survey-targeting flags`);
+  if (flags.length === 0) {
+    console.log(
+      "\nPostHog returned zero flags. Refusing to sync — this is almost always a misconfigured API key or project ID, " +
+      "and proceeding would archive every row in your Notion database. Verify POSTHOG_API_KEY and POSTHOG_PROJECT_ID."
+    );
+    return;
+  }
 
-  // Analyze and collect group IDs
+  // Analyze every flag first so we can decide what to skip based on real
+  // targeting, not on key prefix. A survey-targeting flag with explicit
+  // project targeting is still meaningful and should sync.
   console.log("\nAnalyzing targeting rules...");
   const allGroupIds = new Set();
-  const analyzed = filtered.map((f) => {
+  const analyzedAll = flags.map((f) => {
     const { targeting, targetedIds } = analyzeFlag(f, posthog.groupPropertyKey);
-    targetedIds.forEach((id) => allGroupIds.add(id));
     return { ...f, targeting, targetedIds };
   });
+
+  const analyzed = analyzedAll.filter((f) => {
+    if (skipSurveyFlags && f.key.startsWith("survey-targeting-") && f.targetedIds.length === 0) {
+      return false;
+    }
+    return true;
+  });
+  const skipped = analyzedAll.length - analyzed.length;
+  if (skipped) console.log(`  Skipping ${skipped} survey-targeting flag(s) without project targeting`);
+
+  analyzed.forEach((f) => f.targetedIds.forEach((id) => allGroupIds.add(id)));
 
   // Resolve group IDs to names
   const groupMap = new Map();
@@ -57,11 +69,17 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
     console.log(`  Resolved ${resolved}/${allGroupIds.size}`);
   }
 
-  // Build flag data with resolved names
+  // Build flag data with resolved names + a reverse index (groupId → flagKeys)
+  // so each directory row can list which flags target it.
+  const groupToFlags = new Map();
   const flagData = analyzed.map((f) => {
     const names = f.targetedIds
       .map((id) => groupMap.get(id)?.name || id)
       .sort((a, b) => a.localeCompare(b));
+    for (const id of f.targetedIds) {
+      if (!groupToFlags.has(id)) groupToFlags.set(id, []);
+      groupToFlags.get(id).push(f.key);
+    }
     return {
       key: f.key,
       name: f.name || f.key,
@@ -90,14 +108,14 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
   const client = createClient(notion.apiKey);
 
   console.log("\nSyncing flags to Notion...");
-  const { titlePropName } = await ensureSchema(client, notion.databaseId);
+  const { titlePropName, properties: schemaProps } = await ensureSchema(client, notion.databaseId);
   const existingFlags = await getExistingPages(client, notion.databaseId);
 
   let created = 0;
   let updated = 0;
   let failed = 0;
   for (const f of flagData) {
-    const result = await upsertFlag(client, notion.databaseId, existingFlags, f, titlePropName);
+    const result = await upsertFlag(client, notion.databaseId, existingFlags, f, titlePropName, schemaProps);
     if (result === "created") created++;
     else if (result === "updated") updated++;
     else failed++;
@@ -107,12 +125,13 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
   // Archive flags that no longer exist in PostHog
   const currentFlagKeys = new Set(flagData.map((f) => f.key));
   const archived = await archiveStaleFlags(client, notion.databaseId, existingFlags, currentFlagKeys);
-  if (archived > 0) console.log(`  ${archived} archived (deleted from PostHog)`);
+  if (archived > 0) console.log(`  ${archived} archived (no longer in PostHog)`);
 
   // Optional: Directory
   if (notion.directoryDatabaseId && allGroupIds.size > 0) {
     console.log("\nSyncing group directory...");
-    const { titlePropName: dirTitlePropName } = await ensureDirectorySchema(client, notion.directoryDatabaseId);
+    const { titlePropName: dirTitlePropName, properties: dirSchemaProps } =
+      await ensureDirectorySchema(client, notion.directoryDatabaseId);
     const existingDir = await getExistingPages(client, notion.directoryDatabaseId);
 
     let dirCreated = 0;
@@ -123,8 +142,14 @@ export async function syncFlags({ posthog, notion, skipSurveyFlags, dryRun }) {
         client,
         notion.directoryDatabaseId,
         existingDir,
-        { groupId: id, name: info.name, tier: info.tier },
-        dirTitlePropName
+        {
+          groupId: id,
+          name: info.name,
+          tier: info.tier,
+          flagKeys: (groupToFlags.get(id) || []).slice().sort(),
+        },
+        dirTitlePropName,
+        dirSchemaProps
       );
       if (result === "created") dirCreated++;
       else if (result === "updated") dirUpdated++;

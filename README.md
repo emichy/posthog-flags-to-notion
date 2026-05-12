@@ -21,6 +21,8 @@ A Notion database like this:
 
 Real customer names — not opaque IDs like `alphakQPmxiunoj70X`. Percentage rollouts get a plain-English summary. Every flag links directly to its PostHog page. Flags deleted from PostHog are automatically marked **Archived** so your table stays trustworthy.
 
+A `Notes` column is added once and **never overwritten** — use it for free-form annotations and they'll survive every re-sync.
+
 ### How targeting works
 
 PostHog feature flags use condition groups — each flag can have one or more sets of rules. This tool reads those conditions and translates them:
@@ -190,7 +192,7 @@ These env vars apply to the CLI, GitHub Actions, and MCP server. The Claude Code
 | `POSTHOG_GROUP_TYPE_INDEX` | No | `0` | Which PostHog group type to resolve (0 = first) |
 | `POSTHOG_GROUP_PROPERTY_KEY` | No | `project_id` | The property key in flag filters to match on |
 | `NOTION_DIRECTORY_DATABASE_ID` | No | — | Optional second database for a group name/ID lookup |
-| `SKIP_SURVEY_FLAGS` | No | `true` | Skip PostHog survey targeting flags |
+| `SKIP_SURVEY_FLAGS` | No | `true` | Skip PostHog `survey-targeting-*` flags **only when they have no explicit project targeting**. Survey flags with real targeting still sync. |
 
 ### About group types
 
@@ -207,10 +209,12 @@ The tool uses PostHog's Groups API to look up the `name` property for each group
 
 If you set `NOTION_DIRECTORY_DATABASE_ID`, the tool creates a second table:
 
-| Group Name | Group ID | Tier |
-|---|---|---|
-| Acme Corp | `cmp_abc123` | Enterprise |
-| Globex | `cmp_def456` | Business |
+| Group Name | Group ID | Tier | Feature Flags |
+|---|---|---|---|
+| Acme Corp | `cmp_abc123` | Enterprise | `new_ui`, `new_editor` |
+| Globex | `cmp_def456` | Business | `new_editor` |
+
+Each group appears exactly once (deduplicated by `Group ID`) regardless of how many flags reference it. The `Feature Flags` column is a multi-select listing every flag that targets that group — useful when someone asks "what is Acme in?"
 
 ## Troubleshooting
 
