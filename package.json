@@ -5,8 +5,8 @@
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "posthog-flags-to-notion": "./bin/cli.js",
-    "posthog-flags-mcp": "./bin/mcp.js"
+    "posthog-flags-to-notion": "bin/cli.js",
+    "posthog-flags-mcp": "bin/mcp.js"
   },
   "files": [
     "bin/",
@@ -34,7 +34,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/emichy/posthog-flags-to-notion"
+    "url": "git+https://github.com/emichy/posthog-flags-to-notion.git"
   },
   "bugs": {
     "url": "https://github.com/emichy/posthog-flags-to-notion/issues"
